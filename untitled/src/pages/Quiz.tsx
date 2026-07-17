@@ -43,6 +43,8 @@ const Quiz = () => {
   // 문제가 표시되는 동안 AI 호출을 미리 시작해 응답 대기 시간을 줄인다.
   // 두 호출 모두 사용자의 답과 무관하게 '문제 내용'만으로 결정되므로 선요청이 안전하다.
   const prefetchRef = useRef<{ key: string; ai: Promise<AIAnswer>; verdict: Promise<string> } | null>(null);
+  // 늦게 도착한 해설이 다음 문제 화면을 덮어쓰지 않도록 하는 가드
+  const verdictTokenRef = useRef<string>("");
 
   const buildQuestions = useCallback(() => {
     const fixedQuestion = quizData.find((q) => q.id === FIXED_FIRST_ID);
@@ -88,23 +90,39 @@ const Quiz = () => {
 
       if (answer === current.isSpam) setPlayerScore((s) => s + 10);
 
-      setLoading(true);
       // 미리 시작해 둔 요청이 있으면 재사용, 없으면 지금 시작
       const key = `${difficulty}:${current.id}`;
       const pf = prefetchRef.current;
       const aiPromise = pf && pf.key === key ? pf.ai : getChallengeAIGuess(current, difficulty!);
       const verdictPromise = pf && pf.key === key ? pf.verdict : getGuardianVerdict(current);
-      const [ai, verdict] = await Promise.all([aiPromise, verdictPromise]);
+
+      // 이번 라운드의 해설 토큰. 다음 문제로 넘어가면 값이 바뀌어 늦은 응답을 무시한다.
+      verdictTokenRef.current = key;
+
+      // 1) 대결 AI 추측이 준비되면 즉시 결과 화면으로 전환 (해설은 기다리지 않음)
+      const ai = await aiPromise;
       setAiAnswer(ai);
       if (ai.isCorrect) setAiScore((s) => s + 10);
-      setGuardianVerdict(verdict);
+
+      // 2) 해설은 우선 문제에 내장된 기본 해설을 즉시 보여주고,
+      //    안심파수꾼의 다듬어진 해설이 도착하면 조용히 교체한다 (대기 시간 체감 제거)
+      setGuardianVerdict(`안녕하세요, 안심파수꾼입니다.\n\n${current.explanation}`);
       setLoading(false);
       setPhase("explanation");
+
+      verdictPromise
+        .then((verdict) => {
+          if (verdictTokenRef.current === key && verdict) setGuardianVerdict(verdict);
+        })
+        .catch(() => {
+          /* 실패 시 기본 해설 유지 */
+        });
     },
     [phase, questions, currentIndex, difficulty]
   );
 
   const handleNext = () => {
+    verdictTokenRef.current = ""; // 이전 문제의 늦은 해설 응답 무시
     if (currentIndex === questions.length - 1) {
       setPhase("finished");
     } else {
