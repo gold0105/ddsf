@@ -7,6 +7,8 @@ import Landing from "./pages/Landing";
 import ModeSelect from "./pages/ModeSelect";
 import Quiz from "./pages/Quiz";
 import Scanner from "./pages/Scanner";
+import Settings from "./pages/Settings";
+import Records from "./pages/Records";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,8 @@ const App = () => (
           <Route path="/mode" element={<ModeSelect />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/scanner" element={<Scanner />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/records" element={<Records />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
