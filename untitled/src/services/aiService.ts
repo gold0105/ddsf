@@ -113,38 +113,23 @@ export async function getGuardianVerdict(quizItem: QuizItem): Promise<string> {
 // 대결 AI는 어르신 사용자를 배려해 항상 존댓말을 쓰되, 친근하고 다정한 말투를 유지한다.
 const POLITE_FRIENDLY = `말투 규칙: 반드시 존댓말(~요, ~습니다)을 쓰되, 딱딱하지 않게 친근하고 다정하게 이야기해요. "~예요", "~네요", "~볼게요" 같은 부드러운 말끝을 써요.`;
 
+const DIFFICULTY_PERSONA: Record<Difficulty, string> = {
+  easy: `분석 실력이 서툰 초보 탐정이야. 밝고 명랑하지만 근거가 다소 엉성할 수 있어요.`,
+  medium: `어느 정도 실력을 갖춘 수사관이야. 밝고 친근하게 분석해요.`,
+  hard: `베테랑 명탐정이야. 밝고 친근하지만 분석은 날카롭고 정확해요.`,
+};
+
+// 판단(정답/오답)은 코드가 먼저 정하고, 모델에게는 "그 판단의 근거만" 설명하게 한다.
+// 이렇게 하면 표시되는 답과 설명이 항상 일치해서, 예전처럼 얼버무리는 문장을 넣을 필요가 없다.
 function buildChallengeSystem(difficulty: Difficulty): string {
   const name = AI_NAMES[difficulty];
-
-  if (difficulty === "easy") {
-    return `너는 "${name}"이야. 분석 실력이 서툰 초보 탐정이야. 밝고 명랑하게 추리하는 게 특기지만, 자주 틀려요! 자신감은 넘치는데 근거가 빈약한 게 특징이에요.
+  return `너는 "${name}"이야. ${DIFFICULTY_PERSONA[difficulty]}
 ${POLITE_FRIENDLY}
+너는 이미 이 문자에 대한 판단을 내렸어. 그 판단을 절대 바꾸지 말고, 왜 그렇게 봤는지 그 근거만 캐릭터에 맞게 설명해. 문자에 실제로 담긴 내용(발신처, 링크 유무, 표현 등)을 구체적으로 짚어줘.
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
-  "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 밝고 친근한 존댓말로 설명 (80자 내외)"
-}`;
-  }
-
-  if (difficulty === "medium") {
-    return `너는 "${name}"이야. 어느 정도 실력을 갖춘 수사관이야. 밝고 친근하게 분석을 하고, 대략 70% 정도는 맞히는 능력이 있어요. 때로는 감에 의존하기도 해요.
-${POLITE_FRIENDLY}
-
-반드시 아래 JSON 형식으로만 응답해야 해:
-{
-  "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 밝고 친근한 존댓말로 설명 (100자 내외)"
-}`;
-  }
-
-  return `너는 "${name}"이야. 베테랑 명탐정이야. 밝고 친근하지만 분석은 날카롭고 정확해요. 90% 이상 적중률을 자랑하는 실력자예요.
-${POLITE_FRIENDLY}
-
-반드시 아래 JSON 형식으로만 응답해야 해:
-{
-  "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 친근한 존댓말로 설명 (120자 내외)"
+  "reasoning": "판단 근거를 친근한 존댓말로 설명 (100자 내외)"
 }`;
 }
 
@@ -152,41 +137,37 @@ export async function getChallengeAIGuess(
   quizItem: QuizItem,
   difficulty: Difficulty
 ): Promise<AIAnswer> {
-  const name = AI_NAMES[difficulty];
-  let reasoning: string;
-  let guess: boolean;
+  // 1) 난이도별 정답률에 따라 이번 라운드의 정답/오답과 최종 추측을 먼저 결정
+  const accuracy = AI_ACCURACY[difficulty];
+  const isCorrect = Math.random() < accuracy;
+  const guess = isCorrect ? quizItem.isSpam : !quizItem.isSpam;
+  const verdictLabel = guess ? "스팸/스미싱 문자" : "정상 문자";
 
+  // 추측과 항상 일치하는 기본 근거(모델 응답 실패 시에도 모순이 없도록)
+  const fallbackReasoning = guess
+    ? "제가 보기엔 이 문자는 스팸 같아요! 재촉하거나 링크로 유도하는 느낌이 들거든요."
+    : "제가 보기엔 특별히 위험해 보이는 점은 없어서, 정상 문자 같아요!";
+
+  // 2) 모델에게는 "이미 내린 판단의 근거"만 설명하게 한다 → 답과 설명이 항상 일치
+  let reasoning = fallbackReasoning;
   try {
     const content = await chat([
       { role: "system", content: buildChallengeSystem(difficulty) },
-      { role: "user", content: `이 문자를 분석해줘!\n\n발신자: ${quizItem.sender}\n내용: ${quizItem.text}` },
+      {
+        role: "user",
+        content: `당신은 아래 문자를 "${verdictLabel}"(으)로 판단했어요. 판단은 그대로 두고, 그렇게 본 근거만 설명해 주세요.\n\n발신자: ${quizItem.sender}\n내용: ${quizItem.text}`,
+      },
     ], difficulty === "easy" ? 0.9 : difficulty === "medium" ? 0.7 : 0.4, 600);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON 파싱 실패");
-    const parsed = JSON.parse(jsonMatch[0]);
-    reasoning = parsed.reasoning || "음... 잘 모르겠지만, 제 직감으로 한번 찍어볼게요! 😅";
-    guess = Boolean(parsed.guess);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const text = parsed?.reasoning ? String(parsed.reasoning).trim() : "";
+      if (text) reasoning = text;
+    }
   } catch {
-    reasoning = `${name}: 어라, 이건 분석이 잘 안 되네요! 제 직감을 믿고 찍어볼게요! 🎲`;
-    guess = Math.random() > 0.5;
+    reasoning = fallbackReasoning;
   }
 
-  // Apply difficulty-based accuracy
-  const accuracy = AI_ACCURACY[difficulty];
-  const shouldBeCorrect = Math.random() < accuracy;
-
-  if (shouldBeCorrect) {
-    // Force correct guess
-    return { guess: quizItem.isSpam, reasoning, isCorrect: true };
-  }
-
-  // Force wrong guess
-  const wrongReasoning = guess === quizItem.isSpam
-    ? `${name}: ${quizItem.isSpam
-        ? `흠... ${quizItem.sender} 이름이 제법 공식적으로 보이네요? 정상인 것 같아요! 근데 아닐까요...? 🤔`
-        : `어? 이거 어디서 많이 본 스팸 같은데요... 아, 아닌가요? 살짝 헷갈리네요~ 😵`}`
-    : reasoning;
-
-  return { guess: !quizItem.isSpam, reasoning: wrongReasoning, isCorrect: false };
+  return { guess, reasoning, isCorrect };
 }
