@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 50% 98%;
+    --foreground: 20 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 30% 12%;
+
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 60% 96%;
+    --secondary-foreground: 24 60% 25%;
+
+    --muted: 30 40% 94%;
+    --muted-foreground: 20 15% 45%;
+
+    --accent: 35 90% 92%;
+    --accent-foreground: 24 60% 25%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 30 30% 88%;
+    --input: 30 30% 88%;
+    --ring: 24 95% 53%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 30 20% 96%;
+    --sidebar-foreground: 20 25% 20%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 70% 90%;
+    --sidebar-accent-foreground: 24 50% 25%;
+    --sidebar-border: 30 25% 88%;
+    --sidebar-ring: 24 95% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-primary-foreground rounded-2xl px-8 py-4 text-lg font-bold
+           shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30
+           hover:brightness-110 active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-foreground rounded-2xl px-8 py-4 text-lg font-bold
+           border-2 border-border shadow-md hover:shadow-lg
+           hover:border-primary/40 active:scale-[0.98] transition-all duration-200;
+  }
+
+  .card-warm {
+    @apply bg-white rounded-3xl shadow-md border border-border/50 p-6
+           hover:shadow-lg transition-shadow duration-200;
+  }
+
+  .chip-safe {
+    @apply inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold
+           bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+
+  .chip-danger {
+    @apply inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold
+           bg-red-50 text-red-600 border border-red-200;
+  }
+
+  .score-bar {
+    @apply h-3 rounded-full bg-gray-100 overflow-hidden;
+  }
+
+  .score-bar-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+}
