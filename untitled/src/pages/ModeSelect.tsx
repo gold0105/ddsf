@@ -5,7 +5,7 @@ const ModeSelect = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-[#FFF8F0] via-[#FFF3E8] to-[#FFE8D6]">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 page-bg">
       <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-6 duration-500">
         {/* Header */}
         <button
@@ -29,7 +29,7 @@ const ModeSelect = () => {
             onClick={() => navigate("/scanner")}
             className="card-warm text-left flex items-start gap-5 p-6 hover:border-primary/30 hover:shadow-lg hover:shadow-orange-100 transition-all duration-200 group"
           >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-orange-200 group-hover:scale-105 transition-transform">
+            <div className="w-14 h-14 rounded-2xl brand-gradient flex items-center justify-center shrink-0 shadow-lg shadow-orange-200 group-hover:scale-105 transition-transform">
               <Search className="w-7 h-7 text-white" />
             </div>
             <div>
@@ -46,7 +46,7 @@ const ModeSelect = () => {
             onClick={() => navigate("/quiz")}
             className="card-warm text-left flex items-start gap-5 p-6 hover:border-primary/30 hover:shadow-lg hover:shadow-orange-100 transition-all duration-200 group"
           >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-200 group-hover:scale-105 transition-transform">
+            <div className="w-14 h-14 rounded-2xl brand-gradient flex items-center justify-center shrink-0 shadow-lg shadow-amber-200 group-hover:scale-105 transition-transform">
               <Gamepad2 className="w-7 h-7 text-white" />
             </div>
             <div>

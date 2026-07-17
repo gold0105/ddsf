@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Search, Shield, AlertTriangle, Brain, Sparkles, Copy, Info, CheckCircle, ExternalLink } from "lucide-react";
+import { ChevronLeft, Search, Shield, AlertTriangle, Brain, Sparkles, Copy, Info, CheckCircle } from "lucide-react";
 import { analyzeMessage, AnalysisResult } from "@/services/aiService";
+import { addScannerRecord } from "@/lib/records";
+import ReportContacts from "@/components/ReportContacts";
 
 const Scanner = () => {
   const navigate = useNavigate();
@@ -16,6 +18,13 @@ const Scanner = () => {
     try {
       const analysis = await analyzeMessage(inputText.trim());
       setResult(analysis);
+      addScannerRecord({
+        text: inputText.trim(),
+        spamScore: analysis.spamScore,
+        isSpam: analysis.isSpam,
+        reasoning: analysis.reasoning,
+        actionGuide: analysis.actionGuide,
+      });
     } catch {
       // ignore
     } finally {
@@ -57,7 +66,7 @@ const Scanner = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#FFF8F0] via-[#FFF3E8] to-[#FFE8D6]">
+    <div className="min-h-screen flex flex-col page-bg">
       {/* Header */}
       <div className="px-4 py-4 flex items-center max-w-md mx-auto w-full">
         <button
@@ -124,7 +133,7 @@ const Scanner = () => {
         {analyzing && (
           <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in duration-300">
             <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-400 to-primary flex items-center justify-center animate-pulse shadow-lg shadow-orange-200">
+              <div className="w-20 h-20 rounded-2xl brand-gradient flex items-center justify-center animate-pulse shadow-lg shadow-orange-200">
                 <Brain className="w-10 h-10 text-white" />
               </div>
               <Sparkles className="w-6 h-6 text-amber-400 absolute -top-2 -right-2 animate-bounce" />
@@ -180,9 +189,9 @@ const Scanner = () => {
             </div>
 
             {/* Guardian Explanation */}
-                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-orange-100 mb-4">
+                        <div className="soft-panel rounded-2xl p-5 border mb-4">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 flex items-center justify-center overflow-hidden shadow-sm border-2 border-orange-200 flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 flex items-center justify-center overflow-hidden shadow-sm border-2 border-border/60 flex-shrink-0">
                               <img
                                 src="/hero-image.png"
                                 alt="안심파수꾼"
@@ -214,6 +223,13 @@ const Scanner = () => {
               </div>
               <p className="text-sm text-gray-700 leading-relaxed">{result.actionGuide}</p>
             </div>
+
+            {/* Report Contacts (위험·의심 문자일 때) */}
+            {(result.isSpam || result.spamScore >= 30) && (
+              <div className="mb-4">
+                <ReportContacts />
+              </div>
+            )}
 
             {/* Another Check */}
             <button

@@ -14,9 +14,9 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-[#FFF8F0] via-[#FFF3E8] to-[#FFE8D6]">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 page-bg">
       <div className="max-w-md w-full flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-6 duration-500">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200 mb-6">
+        <div className="w-20 h-20 rounded-3xl brand-gradient flex items-center justify-center shadow-lg shadow-orange-200 mb-6">
           <ShieldQuestion className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-5xl font-extrabold text-primary mb-2">404</h1>

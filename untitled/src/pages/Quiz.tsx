@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, CheckCircle, RotateCcw, Trophy,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import quizData, { QuizItem } from "@/data/quizData";
 import { getGuardianVerdict, getChallengeAIGuess, getAIName, AIAnswer, Difficulty } from "@/services/aiService";
+import { addQuizRecord } from "@/lib/records";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const shuffled = [...arr];
@@ -37,6 +38,10 @@ const Quiz = () => {
   const [playerScore, setPlayerScore] = useState(0);
   const [aiScore, setAiScore] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // 문제가 표시되는 동안 AI 호출을 미리 시작해 응답 대기 시간을 줄인다.
+  // 두 호출 모두 사용자의 답과 무관하게 '문제 내용'만으로 결정되므로 선요청이 안전하다.
+  const prefetchRef = useRef<{ key: string; ai: Promise<AIAnswer>; verdict: Promise<string> } | null>(null);
 
   const buildQuestions = useCallback(() => {
     const fixedQuestion = quizData.find((q) => q.id === FIXED_FIRST_ID);
@@ -81,10 +86,12 @@ const Quiz = () => {
       if (answer === current.isSpam) setPlayerScore((s) => s + 10);
 
       setLoading(true);
-      const [ai, verdict] = await Promise.all([
-        getChallengeAIGuess(current, difficulty!),
-        getGuardianVerdict(current),
-      ]);
+      // 미리 시작해 둔 요청이 있으면 재사용, 없으면 지금 시작
+      const key = `${difficulty}:${current.id}`;
+      const pf = prefetchRef.current;
+      const aiPromise = pf && pf.key === key ? pf.ai : getChallengeAIGuess(current, difficulty!);
+      const verdictPromise = pf && pf.key === key ? pf.verdict : getGuardianVerdict(current);
+      const [ai, verdict] = await Promise.all([aiPromise, verdictPromise]);
       setAiAnswer(ai);
       if (ai.isCorrect) setAiScore((s) => s + 10);
       setGuardianVerdict(verdict);
@@ -110,6 +117,31 @@ const Quiz = () => {
   const totalQuestions = questions.length;
   const currentQuestion = questions[currentIndex];
 
+  // 문제가 표시되면 백그라운드에서 AI 응답을 미리 요청해 둔다.
+  useEffect(() => {
+    if (phase !== "playing" || !difficulty || !currentQuestion) return;
+    const key = `${difficulty}:${currentQuestion.id}`;
+    if (prefetchRef.current?.key === key) return;
+    prefetchRef.current = {
+      key,
+      ai: getChallengeAIGuess(currentQuestion, difficulty),
+      verdict: getGuardianVerdict(currentQuestion),
+    };
+  }, [phase, difficulty, currentQuestion]);
+
+  // 대결이 끝나면 결과를 기록소에 저장한다.
+  useEffect(() => {
+    if (phase !== "finished" || !difficulty) return;
+    addQuizRecord({
+      difficulty,
+      playerScore,
+      aiScore,
+      total: totalQuestions,
+      aiName: getAIName(difficulty),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   const getPlayerVsAi = () => {
     if (playerScore > aiScore) return { emoji: "🎉", text: "당신의 승리입니다!", color: "text-emerald-600" };
     if (playerScore < aiScore) return { emoji: "😢", text: `${aiName}의 승리...`, color: "text-red-500" };
@@ -119,7 +151,7 @@ const Quiz = () => {
   // ─── Difficulty Selection Screen ───
   if (phase === "difficulty") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-[#FFF8F0] via-[#FFF3E8] to-[#FFE8D6]">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 page-bg">
         <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-6 duration-500">
           <button
             onClick={() => navigate("/mode")}
@@ -171,14 +203,14 @@ const Quiz = () => {
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#FFF8F0] to-[#FFE8D6]">
+      <div className="min-h-screen flex items-center justify-center page-bg">
         <p className="text-gray-500">로딩 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#FFF8F0] via-[#FFF3E8] to-[#FFE8D6]">
+    <div className="min-h-screen flex flex-col page-bg">
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between max-w-md mx-auto w-full">
         <button
@@ -214,7 +246,7 @@ const Quiz = () => {
         </div>
         <div className="score-bar">
           <div
-            className="score-bar-fill bg-gradient-to-r from-orange-400 to-primary"
+            className="score-bar-fill brand-gradient"
             style={{ width: `${((currentIndex) / totalQuestions) * 100}%` }}
           />
         </div>
@@ -354,9 +386,9 @@ const Quiz = () => {
                 </div>
 
                 {/* Guardian Verdict */}
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-orange-100">
+                <div className="soft-panel rounded-2xl p-5 border">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 flex items-center justify-center overflow-hidden shadow-sm border-2 border-orange-200 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 flex items-center justify-center overflow-hidden shadow-sm border-2 border-border/60 flex-shrink-0">
                       <img
                         src="/hero-image.png"
                         alt="안심파수꾼"

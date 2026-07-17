@@ -50,20 +50,21 @@ async function chat(messages: { role: "system" | "user" | "assistant"; content: 
 // ─── 안심파수꾼: Scanner 분석 ───
 
 const GUARDIAN_SYSTEM = `너의 이름은 "안심파수꾼"이야. 스미싱/스팸 문자를 분석하는 전문가로서 진지하고 정중한 말투로 답변해.
+고령층도 이해하기 쉽도록 짧고 명확하게 설명해.
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
   "spamScore": 0부터 100 사이의 위험도 점수 (숫자),
   "isSpam": true 또는 false,
-  "reasoning": "판단 근거를 간결하게 설명 (정중한 말투, 100자 내외)",
-  "actionGuide": "사용자가 취해야 할 행동 지침 (정중한 말투, 100자 내외)"
+  "reasoning": "판단 근거를 간결하게 설명 (정중한 말투, 70자 이내)",
+  "actionGuide": "사용자가 취해야 할 행동 지침 (정중한 말투, 70자 이내)"
 }`;
 
 export async function analyzeMessage(message: string): Promise<AnalysisResult> {
   const content = await chat([
     { role: "system", content: GUARDIAN_SYSTEM },
     { role: "user", content: `다음 문자를 분석해줘:\n\n${message}` },
-  ], 0.5, 1200);
+  ], 0.5, 700);
 
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("응답 파싱 실패: JSON을 찾을 수 없습니다");
@@ -81,25 +82,30 @@ export async function analyzeMessage(message: string): Promise<AnalysisResult> {
 
 const GUARDIAN_QUIZ_SYSTEM = `너의 이름은 "안심파수꾼"이야. 퀴즈의 정답 판정자로서 진지하고 정중한 말투로 말해.
 
-사용자와 AI가 스미싱/정상 여부를 맞혔는지 평가하고, 올바른 해설을 제공해. 말투는 항상 "안녕하세요, 안심파수꾼입니다."로 시작하고 정중하게.
+사용자와 AI가 스미싱/정상 여부를 맞혔는지 평가하고, 올바른 해설을 제공해. 말투는 항상 "안녕하세요, 안심파수꾼입니다."로 시작하고 정중하게. 고령층도 이해하기 쉽도록 핵심만 짧게.
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
-  "verdict": "정답 판정 및 해설 (정중한 말투, 200자 내외)"
+  "verdict": "정답 판정 및 해설 (정중한 말투, 150자 이내)"
 }`;
 
 export async function getGuardianVerdict(quizItem: QuizItem): Promise<string> {
+  const fallback = `안녕하세요, 안심파수꾼입니다.\n\n${quizItem.explanation}`;
   const label = quizItem.isSpam ? "스팸/스미싱" : "정상 문자";
-  const content = await chat([
-    { role: "system", content: GUARDIAN_QUIZ_SYSTEM },
-    { role: "user", content: `이 문자는 "${label}"입니다. 아래 문자를 보고 참가자들이 왜 맞았는지/틀렸는지 정중하게 해설해줘:\n\n발신자: ${quizItem.sender}\n내용: ${quizItem.text}\n실제 판정: ${label}\n설명자료: ${quizItem.explanation}` },
-  ], 0.4, 1200);
+  try {
+    const content = await chat([
+      { role: "system", content: GUARDIAN_QUIZ_SYSTEM },
+      { role: "user", content: `이 문자는 "${label}"입니다. 아래 문자를 보고 참가자들이 왜 맞았는지/틀렸는지 정중하게 해설해줘:\n\n발신자: ${quizItem.sender}\n내용: ${quizItem.text}\n실제 판정: ${label}\n설명자료: ${quizItem.explanation}` },
+    ], 0.4, 800);
 
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return `안녕하세요, 안심파수꾼입니다.\n\n${quizItem.explanation}`;
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return fallback;
 
-  const parsed = JSON.parse(jsonMatch[0]);
-  return parsed.verdict || `안녕하세요, 안심파수꾼입니다.\n\n${quizItem.explanation}`;
+    const parsed = JSON.parse(jsonMatch[0]);
+    return parsed.verdict || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 // ─── 대결 AI: 퀴즈 상대 ───
@@ -148,7 +154,7 @@ export async function getChallengeAIGuess(
     const content = await chat([
       { role: "system", content: buildChallengeSystem(difficulty) },
       { role: "user", content: `이 문자를 분석해줘!\n\n발신자: ${quizItem.sender}\n내용: ${quizItem.text}` },
-    ], difficulty === "easy" ? 0.9 : difficulty === "medium" ? 0.7 : 0.4, 1200);
+    ], difficulty === "easy" ? 0.9 : difficulty === "medium" ? 0.7 : 0.4, 600);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON 파싱 실패");
