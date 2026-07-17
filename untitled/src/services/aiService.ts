@@ -110,35 +110,41 @@ export async function getGuardianVerdict(quizItem: QuizItem): Promise<string> {
 
 // ─── 대결 AI: 퀴즈 상대 ───
 
+// 대결 AI는 어르신 사용자를 배려해 항상 존댓말을 쓰되, 친근하고 다정한 말투를 유지한다.
+const POLITE_FRIENDLY = `말투 규칙: 반드시 존댓말(~요, ~습니다)을 쓰되, 딱딱하지 않게 친근하고 다정하게 이야기해요. "~예요", "~네요", "~볼게요" 같은 부드러운 말끝을 써요.`;
+
 function buildChallengeSystem(difficulty: Difficulty): string {
   const name = AI_NAMES[difficulty];
 
   if (difficulty === "easy") {
-    return `너는 "${name}"이야. 분석 실력이 서툰 초보 탐정이야. 유쾌하고 쾌활한 말투로 추리하는 게 특기지만, 자주 틀려! 자신감은 넘치는데 근거가 빈약한 게 특징이야.
+    return `너는 "${name}"이야. 분석 실력이 서툰 초보 탐정이야. 밝고 명랑하게 추리하는 게 특기지만, 자주 틀려요! 자신감은 넘치는데 근거가 빈약한 게 특징이에요.
+${POLITE_FRIENDLY}
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
   "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 유쾌하게 설명 (80자 내외)"
+  "reasoning": "추리 과정을 밝고 친근한 존댓말로 설명 (80자 내외)"
 }`;
   }
 
   if (difficulty === "medium") {
-    return `너는 "${name}"이야. 어느 정도 실력을 갖춘 수사관이야. 유쾌하고 쾌활한 말투로 분석을 하고, 대략 70% 정도는 맞히는 능력이 있어. 때로는 감에 의존하기도 해.
+    return `너는 "${name}"이야. 어느 정도 실력을 갖춘 수사관이야. 밝고 친근하게 분석을 하고, 대략 70% 정도는 맞히는 능력이 있어요. 때로는 감에 의존하기도 해요.
+${POLITE_FRIENDLY}
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
   "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 유쾌하게 설명 (100자 내외)"
+  "reasoning": "추리 과정을 밝고 친근한 존댓말로 설명 (100자 내외)"
 }`;
   }
 
-  return `너는 "${name}"이야. 베테랑 명탐정이야. 유쾌하고 쾌활하지만 분석은 날카롭고 정확해. 90% 이상 적중률을 자랑하는 실력자야.
+  return `너는 "${name}"이야. 베테랑 명탐정이야. 밝고 친근하지만 분석은 날카롭고 정확해요. 90% 이상 적중률을 자랑하는 실력자예요.
+${POLITE_FRIENDLY}
 
 반드시 아래 JSON 형식으로만 응답해야 해:
 {
   "guess": true 또는 false (true=스팸, false=정상),
-  "reasoning": "추리 과정을 유쾌하게 설명 (120자 내외)"
+  "reasoning": "추리 과정을 친근한 존댓말로 설명 (120자 내외)"
 }`;
 }
 
@@ -159,10 +165,10 @@ export async function getChallengeAIGuess(
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON 파싱 실패");
     const parsed = JSON.parse(jsonMatch[0]);
-    reasoning = parsed.reasoning || "음... 잘 모르겠어! 내 직감으로 찍어볼게! 😅";
+    reasoning = parsed.reasoning || "음... 잘 모르겠지만, 제 직감으로 한번 찍어볼게요! 😅";
     guess = Boolean(parsed.guess);
   } catch {
-    reasoning = `${name}: 어... 이거 분석이 잘 안 되네! 내 직감으로 찍어볼게! 🎲`;
+    reasoning = `${name}: 어라, 이건 분석이 잘 안 되네요! 제 직감을 믿고 찍어볼게요! 🎲`;
     guess = Math.random() > 0.5;
   }
 
@@ -178,8 +184,8 @@ export async function getChallengeAIGuess(
   // Force wrong guess
   const wrongReasoning = guess === quizItem.isSpam
     ? `${name}: ${quizItem.isSpam
-        ? `흠... ${quizItem.sender} 이름이 좀 공식적인데? 정상 같아! 근데 아닌가...? 🤔`
-        : `어? 이거 어디서 많이 본 스팸 패턴인데... 아! 아닌가? 헷갈린다~ 😵`}`
+        ? `흠... ${quizItem.sender} 이름이 제법 공식적으로 보이네요? 정상인 것 같아요! 근데 아닐까요...? 🤔`
+        : `어? 이거 어디서 많이 본 스팸 같은데요... 아, 아닌가요? 살짝 헷갈리네요~ 😵`}`
     : reasoning;
 
   return { guess: !quizItem.isSpam, reasoning: wrongReasoning, isCorrect: false };

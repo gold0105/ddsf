@@ -52,7 +52,7 @@ const ModeSelect = () => {
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">AI 대결 퀴즈</h3>
                             <p className="text-sm text-gray-500 leading-relaxed">
-                              AI와 일대일 대결! 143개 문자로 스미싱 판별 실력을 겨뤄보세요. 안심파수꾼이 최종 해설을 제공합니다
+                              AI와 일대일 대결! 10개 문자로 스미싱 판별 실력을 겨뤄보세요. 안심파수꾼이 최종 해설을 제공합니다
                             </p>
               <span className="inline-block mt-2 text-sm font-semibold text-primary">도전하기 →</span>
             </div>

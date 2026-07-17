@@ -20,6 +20,7 @@ function shuffleArray<T>(arr: T[]): T[] {
 type QuizPhase = "difficulty" | "playing" | "result" | "explanation" | "finished";
 
 const FIXED_FIRST_ID = "n054";
+const TOTAL_ROUNDS = 10;
 const DIFFICULTY_LABELS: Record<Difficulty, { label: string; emoji: string; desc: string; color: string }> = {
   easy: { label: "쉬움", emoji: "🐣", desc: "AI가 자주 틀려요!", color: "border-emerald-300 bg-emerald-50 text-emerald-700" },
   medium: { label: "중간", emoji: "⚔️", desc: "AI가 어느 정도 맞춰요", color: "border-amber-300 bg-amber-50 text-amber-700" },
@@ -47,8 +48,10 @@ const Quiz = () => {
     const fixedQuestion = quizData.find((q) => q.id === FIXED_FIRST_ID);
     const rest = quizData.filter((q) => q.id !== FIXED_FIRST_ID);
     const shuffledRest = shuffleArray(rest);
-    if (fixedQuestion) return [fixedQuestion, ...shuffledRest];
-    return shuffledRest;
+    if (fixedQuestion) {
+      return [fixedQuestion, ...shuffledRest].slice(0, TOTAL_ROUNDS);
+    }
+    return shuffledRest.slice(0, TOTAL_ROUNDS);
   }, []);
 
   const startQuiz = (diff: Difficulty) => {
@@ -381,7 +384,7 @@ const Quiz = () => {
                     {aiAnswer.reasoning}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {aiName}: "{aiAnswer.guess ? "스팸이야!" : "정상이야!"}"
+                    {aiName}: "{aiAnswer.guess ? "스팸인 것 같아요!" : "정상인 것 같아요!"}"
                   </p>
                 </div>
 
