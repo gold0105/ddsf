@@ -210,7 +210,7 @@ const Quiz = () => {
       <div className="px-4 max-w-md mx-auto w-full mb-2">
         <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
           <span>{currentIndex + 1} / {totalQuestions}</span>
-          <span className="text-xs">{DIFFICULTY_LABELS[difficulty!].emoji} {difficulty === "easy" ? "쉬움" : difficulty === "medium" ? "중간" : "어려움"} | vs {aiName}</span>
+          <span className="text-xs">{DIFFICULTY_LABELS[difficulty!].emoji} {DIFFICULTY_LABELS[difficulty!].label} | vs {aiName}</span>
         </div>
         <div className="score-bar">
           <div

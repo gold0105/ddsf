@@ -1,28 +1,33 @@
 import { defineHandler } from "nitro";
+import { useRuntimeConfig } from "nitro/runtime-config";
 import { readBody, getMethod } from "nitro/h3";
+
+const jsonError = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
+// 기본값은 AI 챌린지 게이트웨이. 배포 환경에서는 NITRO_AI_* 환경변수로 덮어씁니다.
+const DEFAULT_BASE_URL = "http://114.110.181.212/gateway/mlflow/v1";
+const DEFAULT_API_KEY = "ai-challenge";
+const DEFAULT_MODEL = "ai-challenge";
 
 export default defineHandler(async (event) => {
   if (getMethod(event) !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonError(405, { error: "Method not allowed" });
   }
 
   const body = await readBody<{ messages?: unknown[]; temperature?: number; max_tokens?: number }>(event);
 
   if (!body?.messages || !Array.isArray(body.messages)) {
-    return new Response(JSON.stringify({ error: "messages array is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonError(400, { error: "messages array is required" });
   }
 
-  const baseUrl = "http://114.110.181.212/gateway/mlflow/v1";
-  const apiKey = "ai-challenge";
-  const model = "ai-challenge";
-
-  console.log("[ai-chat] Calling:", `${baseUrl}/chat/completions`, "model:", model);
+  const config = useRuntimeConfig(event);
+  const baseUrl = config.aiBaseUrl || DEFAULT_BASE_URL;
+  const apiKey = config.aiApiKey || DEFAULT_API_KEY;
+  const model = config.aiModel || DEFAULT_MODEL;
 
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -39,43 +44,27 @@ export default defineHandler(async (event) => {
       }),
     });
 
-    console.log("[ai-chat] Status:", response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[ai-chat] Error:", errorText);
-      return new Response(
-        JSON.stringify({ error: `AI API error: ${response.status}`, detail: errorText.slice(0, 200) }),
-        { status: response.status, headers: { "Content-Type": "application/json" } }
-      );
+      return jsonError(response.status, {
+        error: `AI API error: ${response.status}`,
+        detail: errorText.slice(0, 200),
+      });
     }
 
     const rawText = await response.text();
-    console.log("[ai-chat] Raw response (first 600 chars):", rawText.slice(0, 600));
 
-    let data: unknown;
     try {
-      data = JSON.parse(rawText);
+      // OpenAI 호환 응답을 그대로 통과시켜 클라이언트가 파싱하도록 함
+      return JSON.parse(rawText);
     } catch {
-      console.error("[ai-chat] Failed to parse JSON response");
-      return new Response(
-        JSON.stringify({ error: "Invalid JSON from AI API", detail: rawText.slice(0, 200) }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
-      );
+      return jsonError(502, {
+        error: "Invalid JSON from AI API",
+        detail: rawText.slice(0, 200),
+      });
     }
-
-    // Normalize OpenAI-compatible response
-    const choices = (data as Record<string, unknown>)?.choices;
-    console.log("[ai-chat] choices type:", typeof choices, "isArray:", Array.isArray(choices));
-
-    // Pass through raw JSON so client can parse it
-    return data;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[ai-chat] Fetch error:", message);
-    return new Response(
-      JSON.stringify({ error: "Fetch failed", detail: message }),
-      { status: 502, headers: { "Content-Type": "application/json" } }
-    );
+    return jsonError(502, { error: "Fetch failed", detail: message });
   }
 });

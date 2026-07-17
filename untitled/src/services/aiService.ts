@@ -34,20 +34,16 @@ export function getAIName(difficulty: Difficulty): string {
 // ─── Shared API call ───
 
 async function chat(messages: { role: "system" | "user" | "assistant"; content: string }[], temperature = 0.5, maxTokens = 500): Promise<string> {
-  console.log("[aiService] chat() sending", messages.length, "messages");
   const res = await fetch("/api/ai-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, temperature, max_tokens: maxTokens }),
   });
-  console.log("[aiService] chat() response status:", res.status);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "unknown" }));
-    console.error("[aiService] chat() error:", err);
     throw new Error(err.error || `API error ${res.status}`);
   }
   const data = await res.json();
-  console.log("[aiService] chat() success, content length:", data.choices?.[0]?.message?.content?.length);
   return data.choices?.[0]?.message?.content ?? "";
 }
 
